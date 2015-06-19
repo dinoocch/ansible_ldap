@@ -55,13 +55,13 @@ import re
 
 class sourceFile(object):
 
-    def __init__(self, module, l):
+    def __init__(self, module, l,filepath):
         self.module = module
         self.l = l
         self.changed = False
         self.entries = []
-        self.source = os.path.expanduser(module.params['source'])
-        self.openFile = open(source)
+        self.source = filepath
+        self.openFile = open(self.source)
         self.fileText = openFile.read()
         self.openFile.close()
         self.parse()
@@ -256,9 +256,27 @@ def main():
             # result['failed'] = True
             module.fail_json(msg=err)
 
-    src = SourceFile(module)
-    src.go()
-    module.exit_json(changed=src.changed)
+    source = os.path.expanduser(module.params['source'])
+    if os.path.isfile(source):
+        src = SourceFile(module,l,source)
+        src.go()
+        module.exit_json(changed=src.changed)
+
+    elif os.path.isdir(source):
+        sourceFiles = []
+        for root, subdirs, files in os.walk(source):
+            for filename in files:
+                path = os.path.join(source,filename)
+                sourceFiles.append(sourceFile(module,l,path))
+        changed = False
+        for src in sourceFiles:
+            src.go()
+            if src.changed:
+                changed = True
+        module.exit_json(changed=changed)
+
+    else:
+        module.fail_json(msg="Unable to locate file/directory.")
 # import stuff required by ansible
 from ansible.module_utils.basic import *
 main()
