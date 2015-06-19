@@ -193,25 +193,14 @@ class entry(object):
     def exists(self):
         # Parse the dn
 
-        dn = self.info['dn'].split(',')
-
-        # Get rid of pesky whitespace
-        map(str.strip, dn)
-
-        filterstring = ''
-        for i in dn:
-            filterstring += '(' + i + ')'
-        query = l.search_s('',ldap.SCOPE_SUBTREE,filterstring)
-        self.match = None
-        if query == None:
+        dn = self.info['dn']
+        filter = '(objectclass=*)'
+        attrs = ['*']
+        try:
+            self.query = l.search_s(dn,ldap.SCOPE_BASE,filter)
+        except ldap.NO_SUCH_ATTRIBUTE:
             return False
-        for item in query:
-            if item[0] == self.info['dn']:
-                self.match = item
-                return True
-
-        return False
-
+        return True
 # =========================
 
 def main():
