@@ -176,6 +176,10 @@ class entry(object):
             line = line.strip(' \t\n\r')
             if line.startswith('#'):
                continue
+
+           if line == '-':
+               continue
+               
             p = re.compile('\s*:\s*')
             values = p.split(text,1)
             if values[0] == 'add' or values[0] == 'delete':
