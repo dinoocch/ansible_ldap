@@ -50,7 +50,6 @@ import ldap
 import os
 import sys
 import re
-
 # == Class Definitions ====
 
 class sourceFile(object):
@@ -78,12 +77,6 @@ class sourceFile(object):
             if item == '':
                 continue
             self.entries.append(Entry(module,item,l))
-
-    def go(self):
-        for entry in self.entries:
-            entry.go()
-            if entry.changed:
-                self.changed = True
 
 class entry(object):
     def __init__(self, module, text,l):
@@ -179,7 +172,7 @@ class entry(object):
 
            if line == '-':
                continue
-               
+
             p = re.compile('\s*:\s*')
             values = p.split(text,1)
             if values[0] == 'add' or values[0] == 'delete':
@@ -194,14 +187,17 @@ class entry(object):
         # Parse the dn
 
         dn = self.info['dn']
-        filter = '(objectclass=*)'
+        Lfilter = '(objectclass=*)'
         attrs = ['*']
         try:
-            self.query = l.search_s(dn,ldap.SCOPE_BASE,filter)
-        except ldap.NO_SUCH_ATTRIBUTE:
+            self.query = l.search_s(dn,ldap.SCOPE_BASE,Lfilter,attrs)
+        except ldap.NO_SUCH_OBJECT:
             return False
         return True
 # =========================
+
+def EntityKey(e):
+    return e.info('dn')[::-1]
 
 def main():
     module = AnsibleModule(
@@ -220,8 +216,6 @@ def main():
     result['destination'] = module.params['destination']
     result['bind_dn'] = module.params['bind_dn']
     result['bind_passwd'] = 'NOT_LOGGING_PASSWORD'
-
-
 
     l = ldap.initialize(module.destination)
     username = module.params['bind_dn']
@@ -248,19 +242,27 @@ def main():
     source = os.path.expanduser(module.params['source'])
     if os.path.isfile(source):
         src = SourceFile(module,l,source)
-        src.go()
-        module.exit_json(changed=src.changed)
+        entities = src.entries
+        changed = False
+        entities.sort( key=EntityKey )
+        for e in entities:
+            e.go()
+            if e.changed:
+                changed = True
+        module.exit_json(changed=changed)
 
     elif os.path.isdir(source):
-        sourceFiles = []
+        entities = []
         for root, subdirs, files in os.walk(source):
             for filename in files:
                 path = os.path.join(source,filename)
-                sourceFiles.append(sourceFile(module,l,path))
+                for e in sourceFile(module,l,path).entries:
+                    entities.append(e)
         changed = False
-        for src in sourceFiles:
-            src.go()
-            if src.changed:
+        entities.sort( key= EntityKey )
+        for e in entities:
+            e.go()
+            if e.changed:
                 changed = True
         module.exit_json(changed=changed)
 
