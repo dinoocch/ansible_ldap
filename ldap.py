@@ -170,7 +170,7 @@ class entry(object):
             if line.startswith('#'):
                continue
 
-           if line == '-':
+            if line == '-':
                continue
 
             p = re.compile('\s*:\s*')
@@ -178,7 +178,7 @@ class entry(object):
             if values[0] == 'add' or values[0] == 'delete':
                 actions[values[0]].append(values[1])
                 continue
-            if values[0] not in self.info):
+            if values[0] not in self.info:
                 self.info[values[0]] = [values[1]]
             else:
                 self.info[values[0]].append(values[1])
@@ -241,31 +241,37 @@ def main():
 
     source = os.path.expanduser(module.params['source'])
     if os.path.isfile(source):
-        src = SourceFile(module,l,source)
-        entities = src.entries
-        changed = False
-        entities.sort( key=EntityKey )
-        for e in entities:
-            e.go()
-            if e.changed:
-                changed = True
-        module.exit_json(changed=changed)
-
+        try:
+            src = SourceFile(module,l,source)
+            entities = src.entries
+            changed = False
+            entities.sort( key=EntityKey )
+            for e in entities:
+                e.go()
+                if e.changed:
+                    changed = True
+            module.exit_json(changed=changed)
+        except ldap.LDAPError, e:
+            err = "LDAP ERROR : %s" % e
+            module.fail_json(msg=err)
     elif os.path.isdir(source):
-        entities = []
-        for root, subdirs, files in os.walk(source):
-            for filename in files:
-                path = os.path.join(source,filename)
-                for e in sourceFile(module,l,path).entries:
-                    entities.append(e)
-        changed = False
-        entities.sort( key= EntityKey )
-        for e in entities:
-            e.go()
-            if e.changed:
-                changed = True
-        module.exit_json(changed=changed)
-
+        try:
+            entities = []
+            for root, subdirs, files in os.walk(source):
+                for filename in files:
+                    path = os.path.join(source,filename)
+                    for e in sourceFile(module,l,path).entries:
+                        entities.append(e)
+            changed = False
+            entities.sort( key= EntityKey )
+            for e in entities:
+                e.go()
+                if e.changed:
+                    changed = True
+            module.exit_json(changed=changed)
+        except ldap.LDAPError, e:
+            err = "LDAP ERROR : %s" % e
+            module.fail_json(msg=err)        
     else:
         module.fail_json(msg="Unable to locate file/directory.")
 # import stuff required by ansible
