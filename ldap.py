@@ -258,7 +258,7 @@ def main():
             src = sourceFile(module,l,source)
             entities = src.entries
             changed = False
-            entities.sort( key=EntityKey )
+            #entities.sort( key=EntityKey )
             for e in entities:
                 e.go()
                 if e.changed:
@@ -276,7 +276,7 @@ def main():
                     for e in sourceFile(module,l,path).entries:
                         entities.append(e)
             changed = False
-            entities.sort( key= EntityKey )
+            #entities.sort( key= EntityKey )
             for e in entities:
                 e.go()
                 if e.changed:
