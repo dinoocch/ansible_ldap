@@ -89,6 +89,9 @@ class entry(object):
             self.module.fail_json(msg="Source file has an entry without a dn!")
 
     def go(self):
+        print json.dumps({
+            "Starting" : self.info['dn'][0]
+        })
         if 'changetype' in self.info:
 
             if self.exists():
@@ -164,6 +167,9 @@ class entry(object):
                 if not self.module.check_mode:
                     self.l.modify(self.info['dn'][0],modlist)
                 self.changed = True
+        print json.dumps({
+            "Done" : self.info['dn'][0]
+        })
 
     def parse(self):
         self.info = {}
