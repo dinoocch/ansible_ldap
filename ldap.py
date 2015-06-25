@@ -20,7 +20,7 @@ options:
         aliases: [ "src" ]
     destination:
         required: false
-        default: "ldap://localhost:1390"
+        default: "ldap://localhost"
         description:
              - URI of the server to be modified
         aliases: [ "dest","uri" ]
@@ -61,7 +61,7 @@ class sourceFile(object):
         self.entries = []
         self.source = filepath
         self.openFile = open(self.source)
-        self.fileText = openFile.read()
+        self.fileText = self.openFile.read()
         self.openFile.close()
         self.parse()
 
@@ -73,10 +73,10 @@ class sourceFile(object):
         self.fileText = self.fileText.replace('\n ', '')
         #now split at the double new line
         self.splitFile = self.fileText.split('\n\n')
-        for item in splitFile:
+        for item in self.splitFile:
             if item == '':
                 continue
-            self.entries.append(Entry(module,item,l))
+            self.entries.append(entry(self.module,item,self.l))
 
 class entry(object):
     def __init__(self, module, text,l):
@@ -92,20 +92,20 @@ class entry(object):
         if 'changetype' in self.info:
 
             if self.exists():
-                if self.info['changetype'] == 'add':
+                if self.info['changetype'][0] == 'add':
                     self.module.fail_json(msg="Cannot add entity dn=%s : it already exists." % self.info['dn'])
-                elif self.info['changetype'] == 'delete':
+                elif self.info['changetype'][0] == 'delete':
                     if not self.module.check_mode:
-                        l.delete_s(self.info['dn'])
+                        self.l.delete_s(self.info['dn'][0])
                         self.changed = True
-                elif self.info['changetype'] == 'modify':
+                elif self.info['changetype'][0] == 'modify':
                     attributesDone = []
                     self.changed = True
                     modlist = []
-                    for add in actions['add']:
+                    for add in self.actions['add']:
                         modlist.append( (ldap.MOD_ADD,add,self.info[add]) )
                         attributesDone.append(add)
-                    for delete in actions['delete']:
+                    for delete in self.actions['delete']:
                         modlist.append( (ldap.MOD_DELETE,delete,None) )
                         attributesDone.append(delete)
                     for key in self.info:
@@ -113,26 +113,29 @@ class entry(object):
                             continue
                         if key in attributesDone:
                             continue
-                        modlist.append( (ldap.MOD_REPLACE, key, self.info[key]) )
 
-                    if not self.module.check_mode:
-                        l.modify_s(self.info['dn'],modlist)
-
+                        if not self.query[0][key] == self.info[key]:
+                            modlist.append( (ldap.MOD_REPLACE, key, self.info[key]) )
+                    if len(modlist) > 0:
+                        if not self.module.check_mode:
+                            self.l.modify_s(self.info['dn'][0],modlist)
+                        self.changed = True
 
             else:
-                if self.info['changetype'] == 'add':
-                    if not self.module.check_mode:
-                        modlist = []
-                        for key in self.info:
-                            if key == 'dn' or key == 'changetype':
-                                continue
+                if self.info['changetype'][0] == 'add':
+                    modlist = []
+                    for key in self.info:
+                        if key == 'dn' or key == 'changetype':
+                            continue
+                        if not self.query[0][key] == self.info[key]:
                             modlist.append( ( key, self.info[key] ) )
-                        l.add(self.info['dn'],modlist)
-                    self.changed = True
-                elif self.info['changetype'] == 'delete':
+                    if len(modlist) > 0:
+                        self.l.add(self.info['dn'][0],modlist)
+                        self.changed = True
+                elif self.info['changetype'][0] == 'delete':
                     self.changed = False
                 else:
-                    self.module.fail_json(msg="Tried to modify non-existant entity dn= %s" % self.info['dn'])
+                    self.module.fail_json(msg="Tried to modify non-existant entity dn= %s" % self.info['dn'][0])
         else:
             if not self.exists():
                 modlist = []
@@ -141,15 +144,15 @@ class entry(object):
                         continue
                     modlist.append( ( key, self.info[key] ) )
                 if not self.module.check_mode:
-                    l.add( self.info['dn'], modlist)
+                    self.l.add( self.info['dn'][0], modlist)
                 self.changed = True
             else:
                 attributesDone = []
                 modlist = []
-                for add in actions['add']:
+                for add in self.actions['add']:
                     modlist.append( (ldap.MOD_ADD,add,self.info[add]) )
                     attributesDone.append(add)
-                for delete in actions['delete']:
+                for delete in self.actions['delete']:
                     modlist.append( (ldap.MOD_DELETE,delete,None) )
                     attributesDone.append(delete)
                 for key in self.info:
@@ -159,7 +162,7 @@ class entry(object):
                         continue
                     modlist.append( (ldap.MOD_REPLACE, key, self.info[key]) )
                 if not self.module.check_mode:
-                    l.modify(self.info['dn'],modlist)
+                    self.l.modify(self.info['dn'][0],modlist)
                 self.changed = True
 
     def parse(self):
@@ -174,7 +177,11 @@ class entry(object):
                continue
 
             p = re.compile('\s*:\s*')
-            values = p.split(text,1)
+            values = p.split(line,1)
+            if values[1].startswith(":"):
+                values[1] = values[1][1:]
+                values[1] = values[1].strip(' \t\n\r')
+
             if values[0] == 'add' or values[0] == 'delete':
                 actions[values[0]].append(values[1])
                 continue
@@ -186,24 +193,24 @@ class entry(object):
     def exists(self):
         # Parse the dn
 
-        dn = self.info['dn']
+        dn = self.info['dn'][0]
         Lfilter = '(objectclass=*)'
         attrs = ['*']
         try:
-            self.query = l.search_s(dn,ldap.SCOPE_BASE,Lfilter,attrs)
+            self.query = self.l.search_s(dn,ldap.SCOPE_BASE,Lfilter,attrs)
         except ldap.NO_SUCH_OBJECT:
             return False
         return True
 # =========================
 
 def EntityKey(e):
-    return e.info('dn')[::-1]
+    return e.info['dn'][0][::-1]
 
 def main():
     module = AnsibleModule(
         argument_spec = dict(
             source=dict(required=True, aliases=['src'], type='str'),
-            destination=dict(default='ldap://localhost:1390', aliases=['dest','uri']),
+            destination=dict(required=False, default='ldap://localhost', aliases=['dest','uri']),
             bind_dn=dict(default='', aliases=['user']),
             bind_passwd=dict(default='', aliases=['pass','password']),
             ),
@@ -217,10 +224,10 @@ def main():
     result['bind_dn'] = module.params['bind_dn']
     result['bind_passwd'] = 'NOT_LOGGING_PASSWORD'
 
-    l = ldap.initialize(module.destination)
+    l = ldap.initialize(module.params['destination'])
     username = module.params['bind_dn']
     password = module.params['bind_passwd']
-    if not module.bind_dn == '':
+    if not module.params['bind_dn'] == '':
         try:
             l.bind_s(username, password)
         except ldap.INVALID_CREDENTIALS:
@@ -242,7 +249,7 @@ def main():
     source = os.path.expanduser(module.params['source'])
     if os.path.isfile(source):
         try:
-            src = SourceFile(module,l,source)
+            src = sourceFile(module,l,source)
             entities = src.entries
             changed = False
             entities.sort( key=EntityKey )
@@ -271,7 +278,7 @@ def main():
             module.exit_json(changed=changed)
         except ldap.LDAPError, e:
             err = "LDAP ERROR : %s" % e
-            module.fail_json(msg=err)        
+            module.fail_json(msg=err)
     else:
         module.fail_json(msg="Unable to locate file/directory.")
 # import stuff required by ansible
