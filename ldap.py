@@ -148,14 +148,14 @@ class entry(object):
                     modlist = []
 
                     for key in self.info:
-                        if key == 'changetype':
+                        if key == 'changetype' or key == 'dn':
                             continue
 
                         if not self.query[0][key] == self.info[key]:
                             modlist.append((key, self.info[key]))
 
                     if len(modlist) > 0:
-                        self.l.add(self.info['dn'][0], modlist)
+                        self.l.add_s(self.info['dn'][0], modlist)
                         self.changed = True
 
                 elif self.info['changetype'][0] == 'delete':
@@ -170,13 +170,13 @@ class entry(object):
                 modlist = []
 
                 for key in self.info:
-                    if key == 'changetype':
+                    if key == 'changetype' or key == 'dn':
                         continue
 
                     modlist.append((key, self.info[key]))
 
                 if not self.module.check_mode:
-                    self.l.add(self.info['dn'][0], modlist)
+                    self.l.add_s(self.info['dn'][0], modlist)
 
                 self.changed = True
 
@@ -208,7 +208,7 @@ class entry(object):
                         modlist.append((ldap.MOD_REPLACE, key, self.info[key]))
 
                 if not self.module.check_mode:
-                    self.l.modify(self.info['dn'][0], modlist)
+                    self.l.modify_s(self.info['dn'][0], modlist)
 
                 self.changed = True
 
