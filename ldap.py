@@ -172,7 +172,7 @@ class entry(object):
                 modlist = []
 
                 for key in self.info:
-                    if key in self.dontchange:
+                    if key == 'dn' or key == 'changetype':
                         continue
 
                     modlist.append((key, self.info[key]))
