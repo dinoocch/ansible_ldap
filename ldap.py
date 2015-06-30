@@ -203,14 +203,14 @@ class entry(object):
 
                     if key not in self.query[0]:
                         modlist.append((ldap.MOD_ADD, key, self.info[key]))
-
-                    else:
+                    elif not self.query[0][key] == self.info[key]:
                         modlist.append((ldap.MOD_REPLACE, key, self.info[key]))
 
                 if not self.module.check_mode:
                     self.l.modify_s(self.info['dn'][0], modlist)
 
-                self.changed = True
+                if len(modlist) > 0:
+                    self.changed = True
 
     def parse(self):
         self.info = {}
