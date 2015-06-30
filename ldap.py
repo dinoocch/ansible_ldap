@@ -155,6 +155,7 @@ class entry(object):
                 attributesDone = []
                 modlist = []
                 for add in self.actions['add']:
+                    modlist.append( (ldap.MOD_ADD,"type",add) )
                     modlist.append( (ldap.MOD_ADD,add,self.info[add]) )
                     attributesDone.append(add)
                 for delete in self.actions['delete']:
