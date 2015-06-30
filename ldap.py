@@ -150,7 +150,7 @@ class entry(object):
                     modlist = []
 
                     for key in self.info:
-                        if key in dontchange:
+                        if key == 'dn' or key == 'changetype':
                             continue
 
                         if not self.query[0][key] == self.info[key]:
