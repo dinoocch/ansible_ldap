@@ -129,11 +129,11 @@ class entry(object):
                         if key in attributesDone:
                             continue
 
-                        if key not in self.query[0]:
+                        if key not in self.query:
                             modlist.append((ldap.MOD_ADD, key,
                                             self.info[key]))
 
-                        elif not self.query[0][key] == self.info[key]:
+                        elif not self.query[key] == self.info[key]:
                             modlist.append((ldap.MOD_REPLACE, key,
                                             self.info[key]))
 
@@ -151,7 +151,7 @@ class entry(object):
                         if key == 'changetype' or key == 'dn':
                             continue
 
-                        if not self.query[0][key] == self.info[key]:
+                        if not self.query[key] == self.info[key]:
                             modlist.append((key, self.info[key]))
 
                     if len(modlist) > 0:
@@ -201,9 +201,9 @@ class entry(object):
                     if key in attributesDone:
                         continue
 
-                    if key not in self.query[0]:
+                    if key not in self.query:
                         modlist.append((ldap.MOD_ADD, key, self.info[key]))
-                    elif not self.query[0][key] == self.info[key]:
+                    elif not self.query[key] == self.info[key]:
                         modlist.append((ldap.MOD_REPLACE, key, self.info[key]))
 
                 if not self.module.check_mode:
@@ -253,13 +253,11 @@ class entry(object):
         try:
             self.query = self.l.search_s(dn, ldap.SCOPE_BASE,
                                          Lfilter, attrs)
-            lowerQuery = []
-            for i in self.query:
-                q = {}
-                for key in self.query:
-                    q[key.lower()] = self.query[i][key].lower()
-                lowerQuery.append(q)
-            self.query = lowerQuery
+
+            q = {}
+            for key in self.query[0][1]:
+                q[key.lower()] = [s.lower() for s in self.query[0][1][key]]
+            self.query = q
 
         except ldap.NO_SUCH_OBJECT:
             return False
