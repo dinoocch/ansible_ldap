@@ -253,6 +253,14 @@ class entry(object):
         try:
             self.query = self.l.search_s(dn, ldap.SCOPE_BASE,
                                          Lfilter, attrs)
+            lowerQuery = []
+            for i in self.query:
+                q = {}
+                for key in self.query:
+                    q[key.lower()] = self.query[i][key].lower()
+                lowerQuery.append(q)
+            self.query = lowerQuery
+
         except ldap.NO_SUCH_OBJECT:
             return False
         return True
