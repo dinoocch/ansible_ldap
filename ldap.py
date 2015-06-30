@@ -174,6 +174,7 @@ class entry(object):
     def parse(self):
         self.info = {}
         self.actions = {'add':[],'delete':[]}
+        self.text = self.text.lower()
         for line in self.text.splitlines():
             line = line.strip(' \t\n\r')
             if line.startswith('#'):
