@@ -83,6 +83,8 @@ class entry(object):
         self.module = module
         self.l = l
         self.text = text
+        self.dontchange = ['dn','changetype','objectclass']
+
         self.parse()
         self.changed = False
         if 'dn' not in self.info:
@@ -143,7 +145,7 @@ class entry(object):
             if not self.exists():
                 modlist = []
                 for key in self.info:
-                    if key == 'dn' or key == 'changetype':
+                    if key in self.dontchange:
                         continue
                     modlist.append( ( key, self.info[key] ) )
                 if not self.module.check_mode:
@@ -159,7 +161,7 @@ class entry(object):
                     modlist.append( (ldap.MOD_DELETE,delete,None) )
                     attributesDone.append(delete)
                 for key in self.info:
-                    if key == 'dn' or key == 'changetype':
+                    if key in self.dontchange:
                         continue
                     if key in attributesDone:
                         continue
@@ -182,7 +184,6 @@ class entry(object):
 
             if line == '-':
                continue
-
             p = re.compile('\s*:\s*')
             values = p.split(line,1)
             if values[1].startswith(":"):
@@ -190,13 +191,13 @@ class entry(object):
                 values[1] = values[1].strip(' \t\n\r')
 
             if values[0] == 'add' or values[0] == 'delete':
-                actions[values[0]].append(values[1])
+                self.actions[values[0]].append(values[1])
                 continue
             if values[0] not in self.info:
                 self.info[values[0]] = [values[1]]
             else:
                 self.info[values[0]].append(values[1])
-
+        self.dontchange.append(self.info['dn'][0].split('=',1)[0])
     def exists(self):
         # Parse the dn
 
