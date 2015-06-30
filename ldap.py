@@ -51,7 +51,7 @@ EXAMPLES = '''
 
 import ldap
 import os
-import re
+import base64
 
 # == Class Definitions ====
 
@@ -215,7 +215,6 @@ class entry(object):
     def parse(self):
         self.info = {}
         self.actions = {'add': [], 'delete': []}
-        self.text = self.text.lower()
         for line in self.text.splitlines():
             line = line.strip(' \t\n\r')
 
@@ -225,12 +224,16 @@ class entry(object):
             if line == '-':
                 continue
 
-            p = re.compile('\s*:\s*')
-            values = p.split(line, 1)
+            values = line.split(':', 1)
+
+            values[0] = values[0].lower()
 
             if values[1].startswith(":"):
                 values[1] = values[1][1:]
-                values[1] = values[1].strip(' \t\n\r')
+                values[1] = values[1].strip(' ')
+                values[1] = base64.b64decode(values[1])
+            else:
+                values[1] = values[1].strip(' ')
 
             if values[0] == 'add' or values[0] == 'delete':
                 self.actions[values[0]].append(values[1])
@@ -256,7 +259,7 @@ class entry(object):
 
             q = {}
             for key in self.query[0][1]:
-                q[key.lower()] = [s.lower() for s in self.query[0][1][key]]
+                q[key.lower()] = [s for s in self.query[0][1][key]]
             self.query = q
 
         except ldap.NO_SUCH_OBJECT:
