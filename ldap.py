@@ -72,7 +72,7 @@ class sourceFile(object):
     def parse(self):
         # Normalize our newlines to unix
         self.fileText = self.fileText.replace('\r\n', '\n')
-        self.fileText = self.fileText.replace('\r', '\r')
+        self.fileText = self.fileText.replace('\r', '\n')
         # Replace newline space for sanity
         self.fileText = self.fileText.replace('\n ', '')
         # now split at the double new line
