@@ -88,95 +88,97 @@ class entry(object):
         self.module = module
         self.l = l
         self.text = text
-        self.dontchange = ['dn', 'changetype', 'objectclass']
+        self.dontchange = ['dn', 'changetype']
+        self.dn = ''
+        self.changeType = ''
+
         self.parse()
         self.changed = False
-        if 'dn' not in self.info:
+
+        if self.dn == '':
             self.module.fail_json(msg="Source file has an entry without a dn!")
 
     def go(self):
 
-        if 'changetype' in self.info:
+        if not self.changeType == '':
             if self.exists():
 
-                if self.info['changetype'][0] == 'add':
+                if self.changeType == 'add':
                     self.module.fail_json(
                         msg="Cannot add entity dn=%s : it already exists."
                         % self.info['dn'])
 
-                elif self.info['changetype'][0] == 'delete':
+                elif self.changeType == 'delete':
                     if not self.module.check_mode:
-                        self.l.delete_s(self.info['dn'][0])
+                        self.l.delete_s(self.dn)
                         self.changed = True
 
-                elif self.info['changetype'][0] == 'modify':
+                elif self.changeType == 'modify':
                     attributesDone = []
                     self.changed = True
                     modlist = []
-
-                    for add in self.actions['add']:
-                        modlist.append((ldap.MOD_ADD, add, self.info[add]))
-                        attributesDone.append(add)
 
                     for delete in self.actions['delete']:
                         modlist.append((ldap.MOD_DELETE, delete, None))
                         attributesDone.append(delete)
 
-                    for key in self.info:
-                        if key == 'dn' or key == 'changetype':
+                    for l in self.info:
+                        if l[0] in attributesDone:
                             continue
 
-                        if key in attributesDone:
+                        if l[0] in dontchange:
                             continue
 
-                        if key not in self.query:
-                            modlist.append((ldap.MOD_ADD, key,
-                                            self.info[key]))
+                        if l[0] in self.actions['add']:
+                            modlist.append((ldap.MOD_ADD, l[0],
+                                            self.changeList(l[0], l[1::])))
+                            continue
 
-                        elif not self.query[key] == self.info[key]:
-                            modlist.append((ldap.MOD_REPLACE, key,
-                                            self.info[key]))
+                        changes = self.changeList(l[0], l[1::])
+
+                        if len(changes) > 0:
+                            modlist.append((ldap.MOD_REPLACE, l[0], l[1::]))
 
                     if len(modlist) > 0:
                         if not self.module.check_mode:
-                            self.l.modify_s(self.info['dn'][0], modlist)
-
+                            self.l.modify_s(self.dn, modlist)
                         self.changed = True
 
             else:
-                if self.info['changetype'][0] == 'add':
+                if self.changeType == 'add':
                     modlist = []
 
-                    for key in self.info:
-                        if key == 'changetype' or key == 'dn':
+                    for l in self.info:
+                        if l[0] == 'changetype' or l[0] == 'dn':
                             continue
 
-                        if not self.query[key] == self.info[key]:
-                            modlist.append((key, self.info[key]))
+                        if not self.query[l[0]] == self.info[l[0]]:
+                            modlist.append((l[0], l[1::]))
 
                     if len(modlist) > 0:
-                        self.l.add_s(self.info['dn'][0], modlist)
+                        if not self.module.check_mode:
+                            self.l.add_s(self.dn, modlist)
                         self.changed = True
 
-                elif self.info['changetype'][0] == 'delete':
+                elif self.changeType == 'delete':
                     self.changed = False
 
                 else:
                     self.module.fail_json(
                         msg="Tried to modify non-existant entity dn= %s"
-                        % self.info['dn'][0])
+                        % self.dn)
         else:
             if not self.exists():
                 modlist = []
 
-                for key in self.info:
-                    if key == 'changetype' or key == 'dn':
+                for l in self.info:
+                    if l[0] == 'changetype' or l[0] == 'dn':
                         continue
 
-                    modlist.append((key, self.info[key]))
+                    modlist.append((l[0], l[1::]))
 
                 if not self.module.check_mode:
-                    self.l.add_s(self.info['dn'][0], modlist)
+                    self.l.add_s(self.dn, modlist)
 
                 self.changed = True
 
@@ -184,36 +186,56 @@ class entry(object):
                 attributesDone = []
                 modlist = []
 
-                for add in self.actions['add']:
-                    modlist.append((ldap.MOD_ADD, "type", add))
-                    modlist.append((ldap.MOD_ADD, add, self.info[add]))
-                    attributesDone.append(add)
-
                 for delete in self.actions['delete']:
                     modlist.append((ldap.MOD_DELETE, delete, None))
                     attributesDone.append(delete)
 
-                for key in self.info:
+                for l in self.info:
 
-                    if key in self.dontchange:
+                    if l[0] in self.dontchange:
                         continue
 
-                    if key in attributesDone:
+                    if l[0] in attributesDone:
                         continue
 
-                    if key not in self.query:
-                        modlist.append((ldap.MOD_ADD, key, self.info[key]))
-                    elif not self.query[key] == self.info[key]:
-                        modlist.append((ldap.MOD_REPLACE, key, self.info[key]))
+                    if l[0] in self.actions['add']:
+                        modlist.append((ldap.MOD_ADD, l[0],
+                                        self.changeList(l[0], l[1::])))
+                        continue
 
-                if not self.module.check_mode:
-                    self.l.modify_s(self.info['dn'][0], modlist)
+                    changes = self.changeList(l[0], l[1::])
+
+                    if l[0] not in self.query:
+                        modlist.append((ldap.MOD_ADD, l[0], l[1::]))
+                        continue
+
+                    if len(changes) > 0:
+                        modlist.append((ldap.MOD_REPLACE, l[0], l[1::]))
 
                 if len(modlist) > 0:
+                    if not self.module.check_mode:
+                        self.l.modify_s(self.dn, modlist)
                     self.changed = True
 
+    def listIndex(self, key):
+        for index in range(0, len(self.info)):
+            if(self.info[index][0] == key):
+                return index
+
+        return -1
+
+    def changeList(self, key, values):
+        if(key not in self.query):
+            return values
+        changes = []
+        for v in values:
+            if v not in self.query[key]:
+                changes.append(v)
+
+        return changes
+
     def parse(self):
-        self.info = {}
+        self.info = []
         self.actions = {'add': [], 'delete': []}
         for line in self.text.splitlines():
             line = line.strip(' \t\n\r')
@@ -239,18 +261,26 @@ class entry(object):
                 self.actions[values[0]].append(values[1])
                 continue
 
-            if values[0] not in self.info:
-                self.info[values[0]] = [values[1]]
+            if values[0] == 'dn':
+                self.dn = values[1]
+                continue
+
+            if values[0] == 'changeType':
+                self.changeType = values[1]
+                continue
+
+            if self.listIndex(values[0]) == -1:
+                self.info.append([values[0], values[1]])
 
             else:
-                self.info[values[0]].append(values[1])
+                self.info[self.listIndex(values[0])].append(values[1])
 
-        self.dontchange.append(self.info['dn'][0].split('=', 1)[0])
+        self.dontchange.append(self.dn.split('=', 1)[0])
 
     def exists(self):
         # Parse the dn
 
-        dn = self.info['dn'][0]
+        dn = self.dn
         Lfilter = '(objectclass=*)'
         attrs = ['*']
         try:
@@ -265,6 +295,7 @@ class entry(object):
         except ldap.NO_SUCH_OBJECT:
             return False
         return True
+
 # =========================
 
 
