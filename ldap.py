@@ -50,7 +50,7 @@ EXAMPLES = '''
 '''
 
 import ldap
-import os
+from os.path import isfile, expanduser
 import base64
 
 # == Class Definitions ====
@@ -126,7 +126,7 @@ class entry(object):
                         if l[0] in attributesDone:
                             continue
 
-                        if l[0] in dontchange:
+                        if l[0] in self.dontchange:
                             continue
 
                         if l[0] in self.actions['add']:
@@ -350,9 +350,9 @@ def main():
             # result['failed'] = True
             module.fail_json(msg=err)
 
-    source = os.path.expanduser(module.params['source'])
+    source = expanduser(module.params['source'])
 
-    if os.path.isfile(source):
+    if isfile(source):
 
         try:
             src = sourceFile(module, l, source)
@@ -372,31 +372,7 @@ def main():
             err = "LDAP ERROR : %s" % e
             module.fail_json(msg=err)
 
-    elif os.path.isdir(source):
-        try:
-            entities = []
-            for root, subdirs, files in os.walk(source):
-                for filename in files:
-                    path = os.path.join(source, filename)
-                    for e in sourceFile(module, l, path).entries:
-                        entities.append(e)
 
-            changed = False
-            # entities.sort( key= EntityKey )
-            for e in entities:
-                e.go()
-
-                if e.changed:
-                    changed = True
-
-            module.exit_json(changed=changed)
-
-        except ldap.LDAPError, e:
-            err = "LDAP ERROR : %s" % e
-            module.fail_json(msg=err)
-
-    else:
-        module.fail_json(msg="Unable to locate file/directory.")
 # import stuff required by ansible
 
 from ansible.module_utils.basic import *
