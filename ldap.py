@@ -262,7 +262,10 @@ class entry(object):
                 continue
 
             if values[0] == 'dn':
-                self.dn = values[1]
+                if self.dn == '':
+                    self.dn = values[1]
+                else:
+                    module.fail_json(msg='Entry with more than one dn')
                 continue
 
             if values[0] == 'changeType':
@@ -372,7 +375,7 @@ def main():
             err = "LDAP ERROR : %s" % e
             module.fail_json(msg=err)
 
-
+    l.unbind()
 # import stuff required by ansible
 
 from ansible.module_utils.basic import *
