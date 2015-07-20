@@ -38,6 +38,11 @@ options:
         default: ""
         description:
              - Password to use with bind_dn
+    base64_passwd:
+        required: false
+        default: ""
+        description:
+             - Base64 Encoded password
 '''
 
 EXAMPLES = '''
@@ -315,7 +320,7 @@ def main():
                              aliases=['dest', 'uri']),
             bind_dn=dict(default='', aliases=['user']),
             bind_passwd=dict(default='', aliases=['pass', 'password']),
-            ),
+            base64_passwd=dict(default='')),
         supports_check_mode=True
         )
 
@@ -328,7 +333,10 @@ def main():
 
     l = ldap.initialize(module.params['destination'])
     username = module.params['bind_dn']
-    password = module.params['bind_passwd']
+    if module.params['base64_passwd'] == '':
+        password = module.params['bind_passwd']
+    else:
+        password = base64.b64decode(module.params['base64_passwd'])
 
     if not module.params['bind_dn'] == '':
         try:
