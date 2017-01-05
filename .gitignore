@@ -1,0 +1,6 @@
+roles
+*.pyc
+library/xbps.py
+*.retry
+*.yml
+hosts
