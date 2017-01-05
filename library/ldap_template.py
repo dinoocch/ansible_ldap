@@ -293,10 +293,10 @@ class LdapConfig:
 
 def main():
     argument_spec = dict(
-        src=dict(required=True),
+        src=dict(required=True, no_log=True),
         destination=dict(default='ldap://'),
         bind_dn=dict(default=None),
-        bind_passwd=dict(default=None),
+        bind_passwd=dict(default=None, no_log=True),
         base64_passwd=dict(default=False, type='bool'),
         start_tls=dict(default=False, type='bool')
     )
