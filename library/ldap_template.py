@@ -101,13 +101,14 @@ class LdapEntry:
                 self.changetype = attr.strip().lower()
             elif prop in ("add", "delete", "exact"):
                 if attr in self.attrs:
-                    self.attrs[attr].state = prop
+                    self.attrs[attr.lower()].state = prop
                 else:
-                    self.attrs[attr] = LdapAttr(state=prop)
+                    self.attrs[attr.lower()] = LdapAttr(state=prop)
             else:
                 if prop not in self.attrs:
                     self.attrs[prop] = LdapAttr()
-                if attr.startswith(":"):
+                if attr[0] == ":":
+                    attr = attr[1:].strip()
                     attr = base64.b64decode(attr).strip()
                 self.attrs[prop].add(attr)
 
@@ -223,6 +224,7 @@ class LdapConfig:
 
         if len(modlist) == 0:
             return
+        self.modified.append(entry.dn)
         self.changed = True
         if check:
             return
