@@ -59,6 +59,7 @@ EXAMPLES = '''
 
 from ansible.module_utils.basic import AnsibleModule # noqa
 
+# Try importing ldap, if not fail so we can show an error
 try:
     import ldap # noqa
     import ldap.modlist # noqa
@@ -72,16 +73,45 @@ import base64 # noqa
 
 # == Class Definitions ====
 class LdapAttr:
+    """
+    Class for a single LDAP Attribute
+
+    :attr state: State of the attribute (add, delete, exact)
+    :attr attrs: Values that should be in Attribute
+    """
     def __init__(self, state="add"):
+        """
+        Initialization function
+
+        :param state: State for the attribute, Default add
+        """
         self.state = state
         self.attrs = []
 
     def add(self, element):
+        """
+        Add a value to the list of values in attribute
+
+        :param element: Element to add
+        """
         self.attrs.append(element)
 
 
 class LdapEntry:
+    """
+    Class representing LDAP Entry
+
+    :param contents: Raw text of ldap entry
+    :param attrs: Dictionary mapping attr to attr entity
+    :param dn: Distinguished name of the entity
+    :param changetype: Changetype for the entity
+    """
     def __init__(self, contents):
+        """
+        Initialization for ldap entry
+
+        :param contents: Content (text) for entry
+        """
         self.contents = contents
         self.attrs = {}
         self.dn = None
@@ -89,6 +119,9 @@ class LdapEntry:
         self.parse()
 
     def parse(self):
+        """
+        Function to parse an ldap entry
+        """
         contents = self.contents
         for i in contents:
             data = i.split(':', 1)
@@ -114,6 +147,18 @@ class LdapEntry:
 
 
 class LdapConfig:
+    """
+    Class representing "entire" LDAP Configuration
+
+    :attr contents: Raw contents for entries
+    :attr host: Host to connect to
+    :attr bind_dn: Dn to bind with
+    :attr bind_pw: Password to bind using
+    :attr start_tls: Use start_tls when connecting
+    :attr module: Ansible module to use
+    :attr changed: Boolean to show if config was changed
+    :attr modified: List of modified entities
+    """
     def __init__(self, contents=None, host=None, bind_dn=None, bind_pw=None,
                  start_tls=False, module=None):
         self.contents = contents
@@ -127,6 +172,9 @@ class LdapConfig:
         self.modified = []
 
     def parse(self):
+        """
+        Parse ldiff based on spec
+        """
         entries = []
         current_entry = []
         previous_comment = False
@@ -137,12 +185,14 @@ class LdapConfig:
                 current_entry = []
                 previous_comment = False
             elif line[0] == " ":
+                # Lines starting with a comma are continuations from previous
                 if not previous_comment:
                     current_entry[-1] = "{0} {1}".format(current_entry[-1],
                                                          line.strip())
                 else:
                     continue
             elif line.lstrip()[0] == "#":
+                # # indicates a comment
                 previous_comment = True
                 continue
             elif line.strip() == "-":
@@ -154,6 +204,11 @@ class LdapConfig:
         self.entries = entries
 
     def find(self, dn, attrs=None):
+        """
+        Find
+
+        :param attrs:  Specific list of attributes to look for
+        """
         if attrs is None:
             attrs = ["*"]
         filter = '(objectclass=*)'  # everything has an objectclass
@@ -172,6 +227,13 @@ class LdapConfig:
         return query
 
     def add(self, entry):
+        """
+        Add an entry to ldap
+
+        MODIFIES CONFIG
+
+        :param entry: Entry to add
+        """
         d = dict((key, value.attrs) for (key, value) in entry.attrs.items())
         modlist = ldap.modlist.addModlist(d)
         try:
@@ -181,6 +243,13 @@ class LdapConfig:
                                   details=exc.message)
 
     def delete(self, entry):
+        """
+        DELETES an entry from ldap
+
+        MODIFIES CONFIG
+
+        :param entry: Entry to delete
+        """
         try:
             self.connection.delete_s(entry.dn)
         except ldap.LDAPError as exc:
@@ -215,7 +284,7 @@ class LdapConfig:
         return modlist
 
     def mod(self, entry, existing, exact=False, check=False):
-        """ This function modifies """
+        """ This function modifies ldap entries """
         modlist = self.diff(entry, existing)
         if exact:
             for attr in existing:
@@ -236,6 +305,11 @@ class LdapConfig:
                                   details=exc.message)
 
     def modify(self, check=False):
+        """
+        Modify (with check mode)
+
+        :param check: Check mode
+        """
         for entry in self.entries:
             existing = self.find(entry.dn, attrs=entry.attrs.keys())
             if existing is None:
@@ -269,6 +343,9 @@ class LdapConfig:
                 self.mod(entry, existing, exact=True, check=check)
 
     def connect(self):
+        """
+        Connect to ldap
+        """
         connection = ldap.initialize(self.host)
 
         if self.start_tls:
