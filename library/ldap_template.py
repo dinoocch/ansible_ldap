@@ -263,10 +263,10 @@ class LdapConfig:
                 continue
 
             elif entry.changetype == "modify":
-                self.mod(entry, existing, check)
+                self.mod(entry, existing, exact=False, check=check)
 
             elif entry.changetype == "exact":
-                self.exact(entry, existing, check)
+                self.mod(entry, existing, exact=True, check=check)
 
     def connect(self):
         connection = ldap.initialize(self.host)
