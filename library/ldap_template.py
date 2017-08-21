@@ -139,7 +139,10 @@ class LdapEntry:
                     self.attrs[attr.lower()] = LdapAttr(state=prop)
             else:
                 if prop not in self.attrs:
-                    self.attrs[prop] = LdapAttr()
+                    if self.changetype == "exact":
+                        self.attrs[prop] = LdapAttr(state="exact")
+                    else:
+                        self.attrs[prop] = LdapAttr(state="add")
                 if attr[0] == ":":
                     attr = attr[1:].strip()
                     attr = base64.b64decode(attr).strip()
